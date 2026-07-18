@@ -1,0 +1,2229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <title>现金流预测 · 动态年数</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+    </script>
+    <style>
+        /* ===== 全局样式 ===== */
+        :root {
+            --bg: #f4f6fa;
+            --card: #ffffff;
+            --text: #1e293b;
+            --sub: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            --radius: 16px;
+            --blue: #2563eb;
+            --green: #16a34a;
+            --red: #dc2626;
+            --orange: #ea580c;
+            --yellow: #f59e0b;
+            --gray: #94a3b8;
+            --radius-sm: 10px;
+            --font-base: 14px;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-size: var(--font-base);
+            padding: 16px 20px 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            transition: all 0.2s;
+        }
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text);
+        }
+        .card-title .sub {
+            font-weight: 400;
+            font-size: 0.85rem;
+            color: var(--sub);
+            margin-left: auto;
+        }
+        .flex-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .flex-col {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .mt-8 {
+            margin-top: 8px;
+        }
+        .mb-8 {
+            margin-bottom: 8px;
+        }
+        .text-muted {
+            color: var(--sub);
+            font-size: 0.85rem;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #fff;
+        }
+        .badge-green {
+            background: var(--green);
+        }
+        .badge-red {
+            background: var(--red);
+        }
+        .badge-orange {
+            background: var(--orange);
+        }
+        .badge-yellow {
+            background: var(--yellow);
+            color: #333;
+        }
+        .badge-gray {
+            background: var(--gray);
+        }
+
+        input,
+        select,
+        button {
+            font-size: var(--font-base);
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: #fff;
+            transition: 0.15s;
+            outline: none;
+        }
+        input:focus,
+        select:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+        button {
+            background: var(--blue);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            padding: 8px 18px;
+            white-space: nowrap;
+        }
+        button:hover {
+            opacity: 0.85;
+        }
+        button:active {
+            transform: scale(0.97);
+        }
+        button.secondary {
+            background: var(--gray);
+        }
+        button.danger {
+            background: var(--red);
+        }
+        button.outline {
+            background: transparent;
+            color: var(--blue);
+            border: 1px solid var(--blue);
+        }
+        button.outline:hover {
+            background: #eef2ff;
+        }
+        button.icon-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            padding: 4px 8px;
+            border-radius: 6px;
+            color: var(--sub);
+            font-size: 0.9rem;
+        }
+        button.icon-btn:hover {
+            background: #f1f5f9;
+        }
+
+        /* ===== 顶部仪表盘 ===== */
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: stretch;
+            gap: 16px;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: #fff;
+            border-radius: var(--radius);
+            padding: 20px 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        .dash-item {
+            flex: 1 1 160px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .dash-item .label {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .dash-item .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .dash-item .sub-value {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        .dash-progress {
+            flex: 2 1 260px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .dash-progress .bar-wrap {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            height: 8px;
+            overflow: hidden;
+        }
+        .dash-progress .bar-fill {
+            height: 100%;
+            background: #fff;
+            border-radius: 20px;
+            transition: width 0.4s;
+        }
+        .dash-goal-input {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .dash-goal-input input {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            width: 110px;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+        .dash-goal-input input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .dash-goal-input label {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .dash-second-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px 20px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 8px;
+            width: 100%;
+        }
+        .dash-second-row .settings-group {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px 16px;
+            flex: 1;
+        }
+        .dash-second-row .settings-group label {
+            font-size: 0.75rem;
+            opacity: 0.7;
+        }
+        .dash-second-row .settings-group input {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            width: 120px;
+        }
+        .dash-second-row .settings-group input[type="number"] {
+            width: 110px;
+        }
+        .dash-second-row .settings-group input[type="date"] {
+            width: 150px;
+        }
+        .dash-second-row .backup-group {
+            display: flex;
+            gap: 6px;
+            margin-left: auto;
+        }
+        .dash-second-row .backup-group button {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 5px 14px;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .dash-second-row .backup-group button:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .dash-third-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 20px 30px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 8px;
+            width: 100%;
+        }
+        .dash-metric {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+        .dash-metric .label {
+            font-size: 0.7rem;
+            opacity: 0.6;
+            text-transform: uppercase;
+        }
+        .dash-metric .value {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .dash-metric .sub {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-left: 4px;
+        }
+        .dash-metric .sub-value {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-left: 4px;
+        }
+
+        .dash-fourth-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px 20px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 8px;
+            width: 100%;
+        }
+        .dash-fourth-row label {
+            font-size: 0.75rem;
+            opacity: 0.7;
+        }
+        .dash-fourth-row input {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            width: 60px;
+        }
+        .dash-fourth-row input[type="number"] {
+            width: 60px;
+        }
+        .dash-fourth-row button {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 4px 14px;
+            font-size: 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .dash-fourth-row button:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        .dash-fourth-row .year-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: auto;
+        }
+        .dash-fourth-row .year-group input {
+            width: 60px;
+        }
+        .dash-fourth-row .year-group .hint {
+            font-size: 0.7rem;
+            opacity: 0.5;
+        }
+        .dash-fourth-row .event-hint {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex: 1 1 200px;
+            min-width: 120px;
+        }
+        .dash-fourth-row .event-hint .label {
+            font-size: 0.7rem;
+            opacity: 0.5;
+            text-transform: uppercase;
+        }
+
+        /* ===== 安全垫结果卡片 ===== */
+        .safety-result-box {
+            padding: 14px 18px;
+            border-radius: var(--radius-sm);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .safety-result-box .timestamp {
+            font-size: 0.75rem;
+            opacity: 0.6;
+            margin-top: 4px;
+        }
+        .safety-level-0 {
+            background: #e8f5e9;
+            border-left: 5px solid #2e7d32;
+            color: #1b5e20;
+        }
+        .safety-level-1 {
+            background: #fff8e1;
+            border-left: 5px solid #f9a825;
+            color: #5d4037;
+        }
+        .safety-level-2 {
+            background: #fff3e0;
+            border-left: 5px solid #ef6c00;
+            color: #bf360c;
+        }
+        .safety-level-3 {
+            background: #fce4ec;
+            border-left: 5px solid #c62828;
+            color: #b71c1c;
+        }
+        .safety-result-box .badge-level {
+            display: inline-block;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #fff;
+            margin-right: 8px;
+        }
+        .badge-level-0 {
+            background: #2e7d32;
+        }
+        .badge-level-1 {
+            background: #f9a825;
+            color: #333;
+        }
+        .badge-level-2 {
+            background: #ef6c00;
+        }
+        .badge-level-3 {
+            background: #c62828;
+        }
+
+        /* ===== 无数据提示 ===== */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--sub);
+        }
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+        }
+        .empty-state h3 {
+            font-size: 1.2rem;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        .empty-state p {
+            max-width: 500px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* ===== 单列布局 ===== */
+        .single-col {
+            width: 100%;
+        }
+
+        /* ===== 列表 & 添加行 ===== */
+        .rule-list,
+        .event-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin: 8px 0;
+            max-height: 320px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .rule-item,
+        .event-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border-left: 4px solid var(--blue);
+            transition: 0.15s;
+        }
+        .rule-item.disabled {
+            opacity: 0.45;
+            border-left-color: var(--gray);
+        }
+        .rule-item .info,
+        .event-item .info {
+            flex: 1;
+            font-size: 0.9rem;
+        }
+        .rule-item .actions,
+        .event-item .actions {
+            display: flex;
+            gap: 4px;
+        }
+        .toggle-switch {
+            width: 36px;
+            height: 20px;
+            background: #cbd5e1;
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            display: inline-block;
+            transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .toggle-switch.active {
+            background: var(--green);
+        }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: 0.2s;
+        }
+        .toggle-switch.active::after {
+            left: 18px;
+        }
+
+        .add-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            background: #f1f5f9;
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            margin-top: 8px;
+            align-items: center;
+        }
+        .add-row input,
+        .add-row select {
+            padding: 6px 10px;
+            font-size: 0.85rem;
+            flex: 0 1 auto;
+            min-width: 70px;
+        }
+        .add-row button {
+            padding: 6px 16px;
+        }
+        .date-label {
+            font-size: 0.7rem;
+            color: var(--sub);
+            margin-right: 2px;
+        }
+
+        /* ===== 每日基础开销 ===== */
+        .daily-cost-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px 40px;
+            align-items: center;
+            width: 100%;
+        }
+        .daily-cost-row .cost-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1 1 200px;
+        }
+        .daily-cost-row .cost-group label {
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .daily-cost-row .cost-group input {
+            flex: 1;
+            min-width: 80px;
+            max-width: 160px;
+        }
+
+        /* ===== 图表 & 表格 ===== */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 8px;
+        }
+        .table-wrap {
+            overflow-x: auto;
+            margin-top: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        th {
+            background: #f1f5f9;
+            text-align: center;
+            padding: 8px 6px;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        td {
+            padding: 6px 8px;
+            text-align: right;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        td:first-child {
+            text-align: left;
+        }
+        .negative {
+            color: var(--red);
+            font-weight: 600;
+        }
+        .highlight-row {
+            background: #dbeafe !important;
+            transition: 0.2s;
+        }
+
+        /* ===== 报告区域 ===== */
+        .tag-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 8px 0;
+        }
+        .tag {
+            background: #e2e8f0;
+            padding: 4px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: 0.15s;
+            user-select: none;
+        }
+        .tag.active {
+            background: var(--blue);
+            color: #fff;
+        }
+        .tag .count {
+            opacity: 0.6;
+            font-size: 0.7rem;
+            margin-left: 4px;
+        }
+        .report-banner {
+            background: #dbeafe;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+
+        /* ===== Toast ===== */
+        .toast-container {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .toast {
+            background: #1e293b;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+            animation: slideUp 0.3s ease;
+            font-weight: 500;
+        }
+        .toast.success {
+            border-left: 6px solid var(--green);
+        }
+        .toast.error {
+            border-left: 6px solid var(--red);
+        }
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== 折叠通用 ===== */
+        .collapsible-header {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        .collapsible-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            max-height: 0;
+        }
+        .collapsible-content.open {
+            max-height: 5000px;
+        }
+
+        /* ===== 引导对话框 ===== */
+        .guide-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+        .guide-overlay.active {
+            display: flex !important;
+        }
+        .guide-box {
+            background: #fff;
+            max-width: 500px;
+            width: 90%;
+            padding: 32px 28px;
+            border-radius: var(--radius);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        .guide-box h2 {
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+        .guide-box p {
+            color: var(--sub);
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+        .guide-box .btn-group {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .guide-box .btn-group button {
+            min-width: 120px;
+            padding: 12px 24px;
+            font-size: 1rem;
+        }
+        .guide-box .btn-group .btn-secondary {
+            background: var(--gray);
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px 12px;
+            }
+            .dashboard {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 16px;
+            }
+            .dash-item {
+                flex: 1 1 auto;
+            }
+            .dash-item .value {
+                font-size: 1.5rem;
+            }
+            .add-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .add-row input,
+            .add-row select {
+                flex: 1;
+            }
+            .table-wrap table {
+                font-size: 0.7rem;
+            }
+            .rule-item,
+            .event-item {
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+            .toast-container {
+                right: 10px;
+                left: 10px;
+                bottom: 10px;
+            }
+            .toast {
+                width: 100%;
+            }
+            .dash-goal-input input {
+                width: 100%;
+            }
+            .dash-second-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            .dash-second-row .backup-group {
+                margin-left: 0;
+            }
+            .dash-third-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            .dash-fourth-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            .dash-fourth-row .year-group {
+                margin-left: 0;
+            }
+            .dash-fourth-row .event-hint {
+                flex: 1 1 100%;
+            }
+            .daily-cost-row .cost-group {
+                flex: 1 1 100%;
+            }
+            .guide-box {
+                padding: 24px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================================
+    顶部仪表盘（四行）
+    ============================================================ -->
+    <div class="dashboard" id="dashboard">
+
+        <!-- 第一行：当前余额 + 本月累计 + 目标进度 -->
+        <div class="dash-item">
+            <span class="label">💰 当前余额</span>
+            <span class="value" id="dashBalance">¥ 0.00</span>
+            <span class="sub-value" id="dashTodayNet">今日净流：¥0.00</span>
+        </div>
+        <div class="dash-item">
+            <span class="label">📊 本月累计（预测）</span>
+            <span class="sub-value" id="dashMonthIncome">收入 ¥0</span>
+            <span class="sub-value" id="dashMonthExpense">支出 ¥0</span>
+        </div>
+        <div class="dash-progress">
+            <div class="flex-row" style="justify-content:space-between;">
+                <span class="label">🎯 目标进度</span>
+                <span class="label" id="dashGoalPct">0%</span>
+            </div>
+            <div class="bar-wrap"><div class="bar-fill" id="dashGoalFill" style="width:0%;"></div></div>
+            <div class="dash-goal-input">
+                <label>目标金额</label>
+                <input type="number" id="dashGoalInput" value="0" step="100" min="0" oninput="syncGoalFromDash()">
+                <span style="font-size:0.8rem; opacity:0.7;">元</span>
+                <span style="font-size:0.7rem; opacity:0.6; margin-left:8px;" id="dashGoalEta">--</span>
+            </div>
+        </div>
+
+        <!-- 第二行：初始余额 + 起始日 + 备份/恢复 -->
+        <div class="dash-second-row">
+            <div class="settings-group">
+                <label>初始余额</label>
+                <input type="number" id="initBalance" value="0" step="0.01" onchange="onDataChange()">
+                <label>起始日</label>
+                <input type="date" id="startDate" onchange="onDataChange()">
+            </div>
+            <div class="backup-group">
+                <button onclick="exportData()">💾 备份</button>
+                <button onclick="document.getElementById('importFile').click()">📂 恢复</button>
+                <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
+            </div>
+        </div>
+
+        <!-- 第三行：健康指标（新增 dashSafetyDays，移除冗余的 dashRiskBadge） -->
+        <div class="dash-third-row">
+            <div class="dash-metric">
+                <span class="label">🛡️ 安全储备</span>
+                <span class="value" id="dashSafetyBalance">¥--</span>
+                <span class="sub" id="dashSafetyDays">--天</span>
+            </div>
+            <div class="dash-metric">
+                <span class="label">📅 枯竭日</span>
+                <span class="value" id="dashDryDate">--</span>
+            </div>
+            <div class="dash-metric">
+                <span class="label">⏳ 剩余天数</span>
+                <span class="value" id="dashDaysToDry">--</span>
+            </div>
+            <div class="dash-metric">
+                <span class="label">🏷️ 风险等级</span>
+                <span class="value" id="dashRiskLevel">🟢 安全</span>
+            </div>
+        </div>
+
+        <!-- 第四行：预警灵敏度 + 安全垫检测 + 预测年数 + 近期事件（新增 dashNextEvent） -->
+        <div class="dash-fourth-row">
+            <label>预警灵敏度</label>
+            <input type="number" id="dashAlertDays" value="30" min="1" max="365" onchange="setCustomAlertFromDash()">
+            <span style="font-size:0.7rem; opacity:0.5;">天</span>
+            <button onclick="calculateRequiredBalanceFromDash()">🛡️ 安全垫检测</button>
+            <div class="year-group">
+                <label>预测年数</label>
+                <input type="number" id="forecastYears" value="5" min="1" max="20" step="1" onchange="onForecastYearsChange()">
+                <span class="hint" id="totalDaysHint">共 1825 天</span>
+            </div>
+            <div class="event-hint" id="dashNextEvent">
+                <span class="label">⏰ 近期事件</span>
+                <span style="font-size:0.85rem;">暂无</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 安全垫检测结果卡片 ===== -->
+    <div class="card" id="safetyResultCard" style="display: none;">
+        <div class="card-title">🛡️ 安全垫检测结果</div>
+        <div id="safetyResultContent"></div>
+    </div>
+
+    <!-- ============================================================
+    下方主体内容
+    ============================================================ -->
+    <div class="single-col">
+
+        <!-- 每日基础开销 -->
+        <div class="card">
+            <div class="card-title">🍔 每日基础开销</div>
+            <div class="daily-cost-row">
+                <div class="cost-group">
+                    <label>💼 工作日</label>
+                    <input type="number" id="workdayCost" value="0" step="0.01" min="0" onchange="onDataChange()">
+                    <span class="text-muted">元/天</span>
+                </div>
+                <div class="cost-group">
+                    <label>🎉 周末</label>
+                    <input type="number" id="weekendCost" value="0" step="0.01" min="0" onchange="onDataChange()">
+                    <span class="text-muted">元/天</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 固定周期计划 -->
+        <div class="card">
+            <div class="collapsible-header" onclick="toggleRules()">
+                <span class="card-title" style="margin:0;">📅 固定周期计划 <span class="sub" id="ruleCount">0 项</span></span>
+                <span id="rulesArrow">▼</span>
+            </div>
+            <div class="collapsible-content open" id="rulesContent">
+                <div class="rule-list" id="fixedRulesList"></div>
+                <div class="add-row" id="addRuleRow">
+                    <select id="addPeriod">
+                        <option value="monthly">每月</option>
+                        <option value="weekly">每周</option>
+                        <option value="quarterly">每季度</option>
+                        <option value="yearly">每年</option>
+                    </select>
+                    <input type="number" id="addDay" value="5" min="1" max="31" style="width:70px;" placeholder="日/星期">
+                    <input type="number" id="addAmount" placeholder="金额" step="0.01" min="0" style="width:100px;">
+                    <select id="addType">
+                        <option value="income">收入</option>
+                        <option value="necessary">必要支出</option>
+                        <option value="discretionary">非必要支出</option>
+                    </select>
+                    <input type="text" id="addDesc" placeholder="说明" style="width:100px;">
+                    <span class="date-label">开始</span><input type="date" id="addStart" style="width:120px;" placeholder="开始日期（可选）">
+                    <span class="date-label">结束</span><input type="date" id="addEnd" style="width:120px;" placeholder="结束日期（可选）">
+                    <button onclick="addFixedRule()">➕ 添加</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 临时事件 -->
+        <div class="card">
+            <div class="collapsible-header" onclick="toggleEvents()">
+                <span class="card-title" style="margin:0;">✏️ 临时事件 <span class="sub" id="eventCount">0 项</span></span>
+                <span id="eventsArrow">▼</span>
+            </div>
+            <div class="collapsible-content open" id="eventsContent">
+                <div class="event-list" id="eventList"></div>
+                <div class="add-row" id="addEventRow">
+                    <input type="date" id="addEventDate" style="width:140px;">
+                    <select id="addEventType">
+                        <option value="income">收入</option>
+                        <option value="necessary">必要支出</option>
+                        <option value="discretionary">非必要支出</option>
+                    </select>
+                    <input type="number" id="addEventAmount" placeholder="金额" step="0.01" min="0" style="width:100px;">
+                    <input type="text" id="addEventDesc" placeholder="说明" style="width:120px;">
+                    <button onclick="addEvent()">➕ 添加</button>
+                    <button class="danger" onclick="clearAllEvents()" style="margin-left:auto;">🗑️ 清空</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 现金流趋势 -->
+        <div class="card" id="trendCard">
+            <div class="collapsible-header" onclick="toggleTrend()">
+                <span class="card-title" style="margin:0;">📈 现金流趋势 <span class="sub" id="trendTitleSuffix">（未来5年）</span></span>
+                <span id="trendArrow">▼</span>
+            </div>
+            <div class="collapsible-content open" id="trendContent">
+                <div id="emptyState" class="empty-state">
+                    <div class="icon">📭</div>
+                    <h3>暂无收支计划</h3>
+                    <p>请在上方添加每日基础开销、固定周期计划或临时事件，系统将自动生成现金流预测。</p>
+                </div>
+                <div id="trendData" style="display:none;">
+                    <div class="flex-row" style="margin-bottom:12px;">
+                        <label>显示范围：</label>
+                        <select id="chartRange" onchange="computeAll()">
+                            <option value="30">未来30天</option>
+                            <option value="90">未来90天</option>
+                            <option value="365" selected>未来1年</option>
+                            <option value="1825">未来5年</option>
+                            <option value="all">全部</option>
+                        </select>
+                        <label style="margin-left:16px;"><input type="checkbox" checked onchange="toggleDataset(0, this.checked)"> 余额</label>
+                        <label><input type="checkbox" checked onchange="toggleDataset(1, this.checked)"> 收入</label>
+                        <label><input type="checkbox" checked onchange="toggleDataset(2, this.checked)"> 支出</label>
+                        <span class="text-muted" style="margin-left:auto;" id="tableRangeHint">当前显示：未来1年</span>
+                    </div>
+                    <div class="chart-container"><canvas id="balanceChart"></canvas></div>
+                    <div class="table-wrap">
+                        <table id="detailTable">
+                            <thead><tr><th>日期</th><th>收入</th><th>必要支出</th><th>非必要支出</th><th>净现金流</th><th>日终余额</th></tr></thead>
+                            <tbody id="detailBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分类报告 -->
+        <div class="card">
+            <div class="collapsible-header" onclick="toggleReport()">
+                <span class="card-title" style="margin:0;">🔎 分类报告（未来预测）</span>
+                <span id="reportArrow">▶</span>
+            </div>
+            <div class="collapsible-content" id="reportContent">
+                <div class="flex-row" style="margin:12px 0 8px;">
+                    <button class="outline" onclick="setReportRange('30')">未来30天</button>
+                    <button class="outline" onclick="setReportRange('90')">未来90天</button>
+                    <button class="outline" onclick="setReportRange('365')">未来1年</button>
+                    <button class="outline" onclick="setReportRange('1825')">未来5年</button>
+                    <button class="outline" onclick="setReportRange('all')" id="reportAllBtn">全部</button>
+                    <label>自定义：</label>
+                    <input type="date" id="analysisStart" style="width:140px;">
+                    <span>至</span>
+                    <input type="date" id="analysisEnd" style="width:140px;">
+                    <button onclick="runAnalysis()">生成报告</button>
+                    <button class="secondary" onclick="exportAnalysisCSV()" id="exportAnalysisBtn" style="display:none;">📥 导出CSV</button>
+                </div>
+                <div class="text-muted" style="margin:4px 0;">点击标签筛选要统计的事件说明：</div>
+                <div class="tag-cloud" id="descTagCloud"></div>
+                <div id="analysisResult" style="display:none; margin-top:16px; background:#f0f9ff; padding:16px; border-radius:var(--radius-sm);">
+                    <div id="analysisBanner" class="report-banner"></div>
+                    <div id="analysisContent"></div>
+                    <div id="analysisDetail" style="margin-top:12px;"></div>
+                    <div style="margin-top:16px; max-height:200px;"><canvas id="analysisPieChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /single-col -->
+
+    <!-- Toast 容器 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- ===== 引导对话框 ===== -->
+    <div id="guideOverlay" class="guide-overlay" style="display:none;">
+        <div class="guide-box">
+            <h2>👋 欢迎使用现金流预测工具</h2>
+            <p>您还没有设置任何收支计划。请选择以下方式开始：</p>
+            <div class="btn-group">
+                <button onclick="closeGuide()">📝 手动设置</button>
+                <button class="btn-secondary" onclick="importFromGuide()">📂 导入已有计划</button>
+            </div>
+            <p style="margin-top:20px; font-size:0.85rem; color:#94a3b8;">您也可以稍后通过「恢复」按钮导入配置。</p>
+        </div>
+    </div>
+
+    <script>
+        // ================================================================
+        //  完整 JavaScript（修复所有错误）
+        // ================================================================
+
+        let PREDICT_DAYS = 1825;
+        let EXTREME_DAYS = 7,
+            DANGER_DAYS = 14,
+            WARNING_DAYS = 30;
+        let events = [];
+        let fixedRules = [];
+        let chartInstance = null;
+        let pieChartInstance = null;
+        let currentDailyBalances = [];
+        let currentAnalysisData = null;
+        let selectedTags = new Set();
+
+        // ---------- 工具 ----------
+        function formatDate(date) {
+            const y = date.getFullYear(),
+                m = String(date.getMonth() + 1).padStart(2, '0'),
+                d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function isWeekend(date) {
+            const day = date.getDay();
+            return day === 0 || day === 6;
+        }
+
+        function toast(msg, type) {
+            type = type || 'success';
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            const el = document.createElement('div');
+            el.className = `toast ${type}`;
+            el.textContent = msg;
+            container.appendChild(el);
+            setTimeout(() => { el.remove(); }, 4000);
+        }
+
+        function getForecastDays() {
+            const el = document.getElementById('forecastYears');
+            const years = el ? parseInt(el.value) || 5 : 5;
+            return Math.max(1, years * 365);
+        }
+
+        function getForecastYears() {
+            const el = document.getElementById('forecastYears');
+            return el ? parseInt(el.value) || 5 : 5;
+        }
+
+        function updateTotalDaysHint() {
+            const days = getForecastDays();
+            const years = getForecastYears();
+            const hint = document.getElementById('totalDaysHint');
+            const suffix = document.getElementById('trendTitleSuffix');
+            const sel = document.getElementById('chartRange');
+            const allOpt = sel ? sel.querySelector('option[value="all"]') : null;
+            const btn = document.getElementById('reportAllBtn');
+            if (hint) hint.textContent = `共 ${days} 天（${years} 年）`;
+            if (suffix) suffix.textContent = `（未来${years}年）`;
+            const label = `全部${years}年`;
+            if (allOpt) allOpt.textContent = label;
+            if (btn) btn.textContent = label;
+        }
+
+        function hasAnyIncomeOrExpense() {
+            const wd = parseFloat(document.getElementById('workdayCost').value) || 0;
+            const we = parseFloat(document.getElementById('weekendCost').value) || 0;
+            if (wd > 0 || we > 0) return true;
+            if (fixedRules.length > 0) return true;
+            if (events.length > 0) return true;
+            return false;
+        }
+
+        function onDataChange() {
+            computeAll();
+        }
+
+        // ---------- 折叠 ----------
+        function toggleRules() {
+            const c = document.getElementById('rulesContent');
+            const a = document.getElementById('rulesArrow');
+            if (!c || !a) return;
+            c.classList.toggle('open');
+            a.textContent = c.classList.contains('open') ? '▼' : '▶';
+        }
+
+        function toggleEvents() {
+            const c = document.getElementById('eventsContent');
+            const a = document.getElementById('eventsArrow');
+            if (!c || !a) return;
+            c.classList.toggle('open');
+            a.textContent = c.classList.contains('open') ? '▼' : '▶';
+        }
+
+        function toggleTrend() {
+            const c = document.getElementById('trendContent');
+            const a = document.getElementById('trendArrow');
+            if (!c || !a) return;
+            c.classList.toggle('open');
+            a.textContent = c.classList.contains('open') ? '▼' : '▶';
+        }
+
+        function toggleReport() {
+            const c = document.getElementById('reportContent');
+            const a = document.getElementById('reportArrow');
+            if (!c || !a) return;
+            c.classList.toggle('open');
+            a.textContent = c.classList.contains('open') ? '▼' : '▶';
+        }
+
+        // ---------- 预测年数 ----------
+        function onForecastYearsChange() {
+            let y = parseInt(document.getElementById('forecastYears').value) || 5;
+            if (y < 1) y = 1;
+            if (y > 20) y = 20;
+            document.getElementById('forecastYears').value = y;
+            PREDICT_DAYS = y * 365;
+            updateTotalDaysHint();
+            computeAll();
+            toast(`预测周期已更新为 ${y} 年（${PREDICT_DAYS} 天）`, 'success');
+        }
+
+        // ---------- 规则有效性 ----------
+        function isRuleEffectiveOnDate(rule, dateStr, startDate) {
+            if (!rule.enabled) return false;
+            if (rule.startDate && dateStr < rule.startDate) return false;
+            if (rule.endDate && dateStr > rule.endDate) return false;
+            if (rule.earlyEndDate && dateStr > rule.earlyEndDate) return false;
+            const currentDate = new Date(dateStr + 'T00:00:00');
+            const y = currentDate.getFullYear(),
+                m = currentDate.getMonth(),
+                d = currentDate.getDate(),
+                dayOfWeek = currentDate.getDay();
+            switch (rule.period) {
+                case 'weekly':
+                    return dayOfWeek === rule.day;
+                case 'monthly': {
+                    const lastDay = new Date(y, m + 1, 0).getDate();
+                    return d === Math.min(rule.day, lastDay);
+                }
+                case 'quarterly': {
+                    const monthDiff = (y * 12 + m) - (startDate.getFullYear() * 12 + startDate.getMonth());
+                    const qIdx = Math.floor(monthDiff / 3);
+                    const qStart = new Date(startDate.getFullYear(), startDate.getMonth() + qIdx * 3, 1);
+                    const target = new Date(qStart);
+                    target.setDate(rule.day);
+                    if (target.getMonth() !== qStart.getMonth()) target.setDate(0);
+                    return currentDate.toDateString() === target.toDateString();
+                }
+                case 'yearly': {
+                    const sDay = startDate.getDate(),
+                        sMonth = startDate.getMonth();
+                    const target = new Date(y, sMonth, Math.min(sDay, new Date(y, sMonth + 1, 0).getDate()));
+                    return currentDate.toDateString() === target.toDateString();
+                }
+                default:
+                    return false;
+            }
+        }
+
+        // ---------- 生成每日数据 ----------
+        function generateDailyData(startStr, initBal, workdayCost, weekendCost, startDateOverride) {
+            const startDate = startDateOverride || new Date(startStr + 'T00:00:00');
+            const days = PREDICT_DAYS;
+            const dates = [];
+            for (let i = 0; i < days; i++) {
+                let d = new Date(startDate);
+                d.setDate(d.getDate() + i);
+                dates.push(formatDate(d));
+            }
+            const dailyMap = {};
+            dates.forEach(d => dailyMap[d] = { income: 0, necessary: 0, discretionary: 0 });
+            dates.forEach(dateStr => {
+                const d = new Date(dateStr + 'T00:00:00');
+                if (isWeekend(d)) {
+                    if (weekendCost > 0) dailyMap[dateStr].necessary += weekendCost;
+                } else {
+                    if (workdayCost > 0) dailyMap[dateStr].necessary += workdayCost;
+                }
+            });
+            dates.forEach(dateStr => {
+                fixedRules.forEach(rule => {
+                    if (isRuleEffectiveOnDate(rule, dateStr, startDate)) {
+                        if (rule.type === 'income') dailyMap[dateStr].income += rule.amount;
+                        else if (rule.type === 'necessary') dailyMap[dateStr].necessary += rule.amount;
+                        else dailyMap[dateStr].discretionary += rule.amount;
+                    }
+                });
+            });
+            events.forEach(e => {
+                if (dailyMap[e.date]) {
+                    if (e.type === 'income') dailyMap[e.date].income += e.amount;
+                    else if (e.type === 'necessary') dailyMap[e.date].necessary += e.amount;
+                    else dailyMap[e.date].discretionary += e.amount;
+                }
+            });
+            let balance = initBal;
+            const dailyBalances = [];
+            for (let date of dates) {
+                const day = dailyMap[date];
+                const net = day.income - day.necessary - day.discretionary;
+                balance += net;
+                dailyBalances.push({ date, ...day, net, balance, totalExpense: day.necessary + day.discretionary });
+            }
+            return { dates, dailyMap, dailyBalances };
+        }
+
+        // ---------- 主计算 ----------
+        function computeAll() {
+            const startStr = document.getElementById('startDate').value;
+            if (!startStr) return;
+            const initBalance = parseFloat(document.getElementById('initBalance').value) || 0;
+            const workdayCost = parseFloat(document.getElementById('workdayCost').value) || 0,
+                weekendCost = parseFloat(document.getElementById('weekendCost').value) || 0;
+            const startDate = new Date(startStr + 'T00:00:00');
+
+            const hasData = hasAnyIncomeOrExpense();
+
+            const emptyState = document.getElementById('emptyState');
+            const trendData = document.getElementById('trendData');
+            if (emptyState) emptyState.style.display = hasData ? 'none' : 'block';
+            if (trendData) trendData.style.display = hasData ? 'block' : 'none';
+
+            if (!hasData) {
+                if (chartInstance) { chartInstance.destroy();
+                    chartInstance = null; }
+                const ctx = document.getElementById('balanceChart');
+                if (ctx) {
+                    const c = ctx.getContext('2d');
+                    c.clearRect(0, 0, c.canvas.width, c.canvas.height);
+                }
+                const body = document.getElementById('detailBody');
+                if (body) body.innerHTML = '';
+                const bal = document.getElementById('dashBalance');
+                if (bal) bal.innerText = '¥ ' + initBalance.toFixed(2);
+                const net = document.getElementById('dashTodayNet');
+                if (net) net.innerText = '今日净流：¥0.00';
+                const mi = document.getElementById('dashMonthIncome');
+                const me = document.getElementById('dashMonthExpense');
+                if (mi) mi.innerText = '收入 ¥0';
+                if (me) me.innerText = '支出 ¥0';
+                const sb = document.getElementById('dashSafetyBalance');
+                const sd = document.getElementById('dashDryDate');
+                const st = document.getElementById('dashDaysToDry');
+                const rl = document.getElementById('dashRiskLevel');
+                if (sb) sb.innerText = '¥--';
+                if (sd) sd.innerText = '--';
+                if (st) st.innerText = '--';
+                if (rl) rl.innerHTML = '⏳ 待设置';
+                const gf = document.getElementById('dashGoalFill');
+                const gp = document.getElementById('dashGoalPct');
+                const ge = document.getElementById('dashGoalEta');
+                if (gf) gf.style.width = '0%';
+                if (gp) gp.innerText = '0%';
+                if (ge) ge.innerHTML = '--';
+                const sc = document.getElementById('safetyResultCard');
+                if (sc) sc.style.display = 'none';
+                const sd2 = document.getElementById('dashSafetyDays');
+                if (sd2) sd2.textContent = '--天';
+                const ne = document.getElementById('dashNextEvent');
+                if (ne) {
+                    const span = ne.querySelector('span:last-child');
+                    if (span) span.textContent = '暂无';
+                }
+                return;
+            }
+
+            const { dailyBalances } = generateDailyData(startStr, initBalance, workdayCost, weekendCost, startDate);
+            currentDailyBalances = dailyBalances;
+
+            let dryDate = null;
+            for (let d of dailyBalances) {
+                if (dryDate === null && d.balance <= 0) { dryDate = d.date; break; }
+            }
+            const fourteen = dailyBalances.slice(0, 14);
+            const min14 = fourteen.length ? Math.min(...fourteen.map(d => d.balance)) : initBalance;
+            let daysToDry = null;
+            if (dryDate) daysToDry = Math.floor((new Date(dryDate + 'T00:00:00') - startDate) / 86400000);
+            let riskText = '🟢 安全',
+                badgeClass = 'badge-green';
+            if (initBalance <= 0) { riskText = '🔴 已枯竭';
+                badgeClass = 'badge-red';
+                dryDate = '已枯竭';
+                daysToDry = 0; } else if (daysToDry !== null) {
+                if (daysToDry <= EXTREME_DAYS) { riskText = '🔴 极度危险';
+                    badgeClass = 'badge-red'; } else if (daysToDry <= DANGER_DAYS) { riskText = '🟠 危险';
+                    badgeClass = 'badge-orange'; } else if (daysToDry <= WARNING_DAYS) { riskText = '🟡 一般危机';
+                    badgeClass = 'badge-yellow'; }
+            }
+
+            // 第一行
+            const balEl = document.getElementById('dashBalance');
+            if (balEl) balEl.innerText = '¥ ' + initBalance.toFixed(2);
+            const todayStr = formatDate(new Date());
+            const todayData = dailyBalances.find(d => d.date === todayStr) || dailyBalances[0];
+            const netEl = document.getElementById('dashTodayNet');
+            if (netEl) netEl.innerText = `今日净流：¥${todayData ? todayData.net.toFixed(2) : '0.00'}`;
+            const now = new Date();
+            const monthStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+            const monthData = dailyBalances.filter(d => d.date.startsWith(monthStr));
+            let monthIncome = 0,
+                monthExpense = 0;
+            monthData.forEach(d => { monthIncome += d.income;
+                monthExpense += d.totalExpense; });
+            const miEl = document.getElementById('dashMonthIncome');
+            const meEl = document.getElementById('dashMonthExpense');
+            if (miEl) miEl.innerText = `收入 ¥${monthIncome.toFixed(2)}`;
+            if (meEl) meEl.innerText = `支出 ¥${monthExpense.toFixed(2)}`;
+
+            // 风险等级（使用 dashRiskLevel，不再使用 dashRiskBadge）
+            const rlEl = document.getElementById('dashRiskLevel');
+            if (rlEl) rlEl.innerHTML = `<span class="badge ${badgeClass}" style="font-size:0.8rem;">${riskText}</span>`;
+
+            // 安全储备天数（新增 dashSafetyDays）
+            const sdEl = document.getElementById('dashSafetyDays');
+            if (sdEl) sdEl.textContent = daysToDry !== null ? `${daysToDry}天` : '∞天';
+
+            // 安全储备金额
+            const sbEl = document.getElementById('dashSafetyBalance');
+            if (sbEl) sbEl.innerText = '¥' + min14.toFixed(2);
+
+            // 枯竭日 / 剩余天数
+            const dryEl = document.getElementById('dashDryDate');
+            const daysEl = document.getElementById('dashDaysToDry');
+            if (dryEl) dryEl.innerText = dryDate || '无枯竭';
+            if (daysEl) daysEl.innerText = daysToDry !== null ? daysToDry + ' 天' : '∞';
+
+            // 目标进度
+            const goal = parseFloat(document.getElementById('dashGoalInput').value) || 0;
+            let pct = goal > 0 ? Math.min(100, (initBalance / goal) * 100) : 0;
+            const gfEl = document.getElementById('dashGoalFill');
+            const gpEl = document.getElementById('dashGoalPct');
+            if (gfEl) gfEl.style.width = pct + '%';
+            if (gpEl) gpEl.innerText = pct.toFixed(1) + '%';
+            autoCalculateSavingGoal();
+
+            // 近期大额事件（dashNextEvent）
+            const next7 = dailyBalances.slice(0, 7).filter(d => d.income > 0 || d.totalExpense > 0);
+            let maxEvent = null;
+            for (let d of next7) {
+                if (d.income > 0 && (!maxEvent || d.income > maxEvent.amount)) maxEvent = { date: d.date, amount: d.income,
+                    type: '收入' };
+                if (d.totalExpense > 0 && (!maxEvent || d.totalExpense > maxEvent.amount)) maxEvent = { date: d.date,
+                    amount: d.totalExpense, type: '支出' };
+            }
+            const neEl = document.getElementById('dashNextEvent');
+            if (neEl) {
+                const span = neEl.querySelector('span:last-child');
+                if (span) {
+                    span.textContent = maxEvent ?
+                        `⏰ ${maxEvent.date} ${maxEvent.type} ${maxEvent.amount.toFixed(0)}` :
+                        '暂无';
+                }
+            }
+
+            // 图表
+            let range = document.getElementById('chartRange').value;
+            let rangeDays;
+            if (range === 'all') {
+                rangeDays = PREDICT_DAYS;
+            } else {
+                rangeDays = parseInt(range) || 365;
+            }
+            if (rangeDays > PREDICT_DAYS) rangeDays = PREDICT_DAYS;
+            const sliced = dailyBalances.slice(0, rangeDays);
+
+            const tbody = document.getElementById('detailBody');
+            if (tbody) {
+                tbody.innerHTML = sliced.map((d, idx) => {
+                    const rowClass = d.balance < 0 ? 'negative' : '';
+                    return `<tr data-date="${d.date}" data-index="${idx}">
+                        <td>${d.date}</td>
+                        <td>${d.income.toFixed(2)}</td>
+                        <td>${d.necessary.toFixed(2)}</td>
+                        <td>${d.discretionary.toFixed(2)}</td>
+                        <td>${d.net.toFixed(2)}</td>
+                        <td class="${rowClass}">${d.balance.toFixed(2)}</td>
+                    </tr>`;
+                }).join('');
+            }
+
+            const rangeMap = {
+                '30': '未来30天',
+                '90': '未来90天',
+                '365': '未来1年',
+                '1825': '未来5年',
+                'all': `全部${getForecastYears()}年`
+            };
+            const hintEl = document.getElementById('tableRangeHint');
+            if (hintEl) hintEl.innerText = '当前显示：' + (rangeMap[range] || '自定义');
+
+            drawChart(dailyBalances, dryDate, rangeDays);
+            updateTagCloud();
+        }
+
+        // ---------- 绘图 ----------
+        function drawChart(dailyBalances, dryDate, rangeDays) {
+            const sliced = dailyBalances.slice(0, rangeDays);
+            const ctx = document.getElementById('balanceChart');
+            if (!ctx) return;
+            const context = ctx.getContext('2d');
+            if (chartInstance) { chartInstance.destroy();
+                chartInstance = null; }
+            let dryIndex = (dryDate && dryDate !== '已枯竭' && dryDate !== '无枯竭') ? sliced.findIndex(d => d.date === dryDate) :
+            -1;
+
+            chartInstance = new Chart(context, {
+                type: 'line',
+                data: {
+                    labels: sliced.map(d => d.date.slice(5)),
+                    datasets: [
+                        { label: '日终余额', data: sliced.map(d => d.balance), borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37,99,235,0.05)', borderWidth: 2, tension: 0.15,
+                        pointRadius: 1.5 },
+                        { label: '每日收入', data: sliced.map(d => d.income), borderColor: '#16a34a',
+                            borderWidth: 1.5, borderDash: [4, 4], tension: 0.1, pointRadius: 0 },
+                        { label: '每日支出', data: sliced.map(d => d.totalExpense), borderColor: '#dc2626',
+                            borderWidth: 1.5, borderDash: [4, 4], tension: 0.1, pointRadius: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: false } },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    const index = context[0].dataIndex;
+                                    return sliced[index].date;
+                                },
+                                label: function(context) {
+                                    return context.dataset.label + ': ¥' + context.parsed.y.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    onClick: function(e, elements) {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const date = sliced[index].date;
+                            const rows = document.querySelectorAll('#detailBody tr');
+                            rows.forEach(row => row.classList.remove('highlight-row'));
+                            const target = document.querySelector(`#detailBody tr[data-date="${date}"]`);
+                            if (target) {
+                                target.classList.add('highlight-row');
+                                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                toast('已定位到 ' + date, 'success');
+                            }
+                        }
+                    }
+                },
+                plugins: dryIndex >= 0 ? [{
+                    id: 'dryPoint',
+                    afterDraw(chart) {
+                        const meta = chart.getDatasetMeta(0);
+                        if (!meta || !meta.data || !meta.data[dryIndex]) return;
+                        const pt = meta.data[dryIndex];
+                        const ctx2 = chart.ctx;
+                        ctx2.save();
+                        ctx2.beginPath();
+                        ctx2.arc(pt.x, pt.y, 6, 0, 2 * Math.PI);
+                        ctx2.fillStyle = '#dc2626';
+                        ctx2.fill();
+                        ctx2.strokeStyle = 'white';
+                        ctx2.lineWidth = 2;
+                        ctx2.stroke();
+                        ctx2.restore();
+                    }
+                }] : []
+            });
+        }
+
+        function toggleDataset(index, visible) {
+            if (chartInstance) {
+                try {
+                    chartInstance.getDatasetMeta(index).hidden = !visible;
+                    chartInstance.update();
+                } catch (_) { /* ignore */ }
+            }
+        }
+
+        // ---------- 固定计划 ----------
+        function addFixedRule() {
+            const period = document.getElementById('addPeriod').value;
+            const day = parseInt(document.getElementById('addDay').value);
+            const amount = parseFloat(document.getElementById('addAmount').value);
+            const type = document.getElementById('addType').value;
+            const desc = document.getElementById('addDesc').value.trim();
+            const startDate = document.getElementById('addStart').value;
+            const endDate = document.getElementById('addEnd').value;
+            if (isNaN(amount) || amount <= 0) { toast('请输入有效的金额', 'error'); return; }
+            fixedRules.push({ period, day, amount, type, startDate, endDate, description: desc, enabled: true,
+                earlyEndDate: '' });
+            renderFixedRules();
+            computeAll();
+            updateTagCloud();
+            toast('固定计划已添加', 'success');
+            document.getElementById('addAmount').value = '';
+            document.getElementById('addDesc').value = '';
+        }
+
+        function toggleRule(index) {
+            if (index < 0 || index >= fixedRules.length) return;
+            fixedRules[index].enabled = !fixedRules[index].enabled;
+            renderFixedRules();
+            computeAll();
+            toast(fixedRules[index].enabled ? '已启用' : '已禁用', 'success');
+        }
+
+        function editRuleInline(index) {
+            if (index < 0 || index >= fixedRules.length) return;
+            const rule = fixedRules[index];
+            const list = document.getElementById('fixedRulesList');
+            const items = list.getElementsByClassName('rule-item');
+            if (index >= items.length) return;
+            const item = items[index];
+            if (item.nextElementSibling && item.nextElementSibling.classList.contains('rule-edit-row')) {
+                item.nextElementSibling.remove();
+                return;
+            }
+            const editDiv = document.createElement('div');
+            editDiv.className = 'rule-edit-row';
+            editDiv.style.cssText =
+                'background:#f0f4ff; border-radius:8px; padding:8px 12px; margin:4px 0; display:flex; flex-wrap:wrap; gap:6px; align-items:center;';
+            editDiv.innerHTML = `
+                <select id="editPeriod"><option value="monthly" ${rule.period==='monthly'?'selected':''}>每月</option><option value="weekly" ${rule.period==='weekly'?'selected':''}>每周</option><option value="quarterly" ${rule.period==='quarterly'?'selected':''}>每季度</option><option value="yearly" ${rule.period==='yearly'?'selected':''}>每年</option></select>
+                <input type="number" id="editDay" value="${rule.day}" min="1" max="31" style="width:70px;">
+                <input type="number" id="editAmount" value="${rule.amount}" step="0.01" style="width:100px;">
+                <select id="editType"><option value="income" ${rule.type==='income'?'selected':''}>收入</option><option value="necessary" ${rule.type==='necessary'?'selected':''}>必要支出</option><option value="discretionary" ${rule.type==='discretionary'?'selected':''}>非必要支出</option></select>
+                <input type="text" id="editDesc" value="${rule.description||''}" style="width:100px;">
+                <span class="date-label">开始</span><input type="date" id="editStart" value="${rule.startDate||''}" style="width:120px;">
+                <span class="date-label">结束</span><input type="date" id="editEnd" value="${rule.endDate||''}" style="width:120px;">
+                <span class="date-label">结清</span><input type="date" id="editEarlyEnd" value="${rule.earlyEndDate||''}" style="width:120px;">
+                <button onclick="saveRuleEdit(${index})">💾 保存</button>
+                <button class="secondary" onclick="this.parentElement.remove()">取消</button>
+            `;
+            item.after(editDiv);
+        }
+
+        function saveRuleEdit(index) {
+            if (index < 0 || index >= fixedRules.length) return;
+            const rule = fixedRules[index];
+            const periodEl = document.getElementById('editPeriod');
+            const dayEl = document.getElementById('editDay');
+            const amountEl = document.getElementById('editAmount');
+            const typeEl = document.getElementById('editType');
+            const descEl = document.getElementById('editDesc');
+            const startEl = document.getElementById('editStart');
+            const endEl = document.getElementById('editEnd');
+            const earlyEl = document.getElementById('editEarlyEnd');
+            if (!periodEl || !dayEl || !amountEl || !typeEl) return;
+            rule.period = periodEl.value;
+            rule.day = parseInt(dayEl.value) || 1;
+            rule.amount = parseFloat(amountEl.value) || 0;
+            rule.type = typeEl.value;
+            rule.description = descEl ? descEl.value.trim() : '';
+            rule.startDate = startEl ? startEl.value : '';
+            rule.endDate = endEl ? endEl.value : '';
+            rule.earlyEndDate = earlyEl ? earlyEl.value : '';
+            renderFixedRules();
+            computeAll();
+            updateTagCloud();
+            toast('计划已更新', 'success');
+        }
+
+        function removeFixedRule(index) {
+            if (index < 0 || index >= fixedRules.length) return;
+            if (confirm('删除该计划？')) {
+                fixedRules.splice(index, 1);
+                renderFixedRules();
+                computeAll();
+                updateTagCloud();
+                toast('已删除', 'success');
+            }
+        }
+
+        function renderFixedRules() {
+            const list = document.getElementById('fixedRulesList');
+            const count = document.getElementById('ruleCount');
+            if (!list || !count) return;
+            if (fixedRules.length === 0) { list.innerHTML = '<div class="text-muted" style="padding:8px;">暂无固定计划</div>';
+                count.innerText = '0 项'; return; }
+            const typeNames = { income: '💰收入', necessary: '🏠必要支出', discretionary: '🎈非必要支出' };
+            const periodNames = { weekly: '每周', monthly: '每月', quarterly: '每季度', yearly: '每年' };
+            list.innerHTML = fixedRules.map((r, i) => {
+                let detail = r.period === 'weekly' ? '每' + ['日', '一', '二', '三', '四', '五', '六'][r.day] :
+                    `每月${r.day}日`;
+                if (r.period === 'quarterly') detail = `每季度第${r.day}天`;
+                if (r.period === 'yearly') detail = `每年同一天`;
+                const desc = r.description ? `【${r.description}】` : '';
+                let periodStr = r.startDate || r.endDate ? `${r.startDate||'起始'}~${r.endDate||'无结束'}` : '永久有效';
+                if (r.earlyEndDate) periodStr += ` (提前至${r.earlyEndDate})`;
+                return `<div class="rule-item ${r.enabled?'':'disabled'}">
+                    <span class="info">${periodNames[r.period]} · ${detail} · ${typeNames[r.type]}：${r.amount.toFixed(2)} 元 ${desc} (${periodStr})</span>
+                    <div class="actions">
+                        <span class="toggle-switch ${r.enabled?'active':''}" onclick="toggleRule(${i})"></span>
+                        <button class="icon-btn" onclick="editRuleInline(${i})">✏️</button>
+                        <button class="icon-btn" onclick="removeFixedRule(${i})">🗑️</button>
+                    </div>
+                </div>`;
+            }).join('');
+            count.innerText = fixedRules.length + ' 项';
+        }
+
+        // ---------- 临时事件 ----------
+        function addEvent() {
+            const date = document.getElementById('addEventDate').value;
+            const type = document.getElementById('addEventType').value;
+            const amount = parseFloat(document.getElementById('addEventAmount').value);
+            const desc = document.getElementById('addEventDesc').value.trim();
+            if (!date || isNaN(amount) || amount <= 0) { toast('请完整填写事件', 'error'); return; }
+            events.push({ date, type, amount, description: desc });
+            events.sort((a, b) => a.date.localeCompare(b.date));
+            renderEventList();
+            computeAll();
+            updateTagCloud();
+            toast('临时事件已添加', 'success');
+            document.getElementById('addEventAmount').value = '';
+            document.getElementById('addEventDesc').value = '';
+        }
+
+        function removeEvent(index) {
+            if (index < 0 || index >= events.length) return;
+            if (confirm('删除该事件？')) {
+                events.splice(index, 1);
+                renderEventList();
+                computeAll();
+                updateTagCloud();
+                toast('已删除', 'success');
+            }
+        }
+
+        function clearAllEvents() {
+            if (confirm('清空所有临时事件？')) { events = [];
+                renderEventList();
+                computeAll();
+                updateTagCloud();
+                toast('已清空', 'success'); }
+        }
+
+        function renderEventList() {
+            const list = document.getElementById('eventList');
+            const count = document.getElementById('eventCount');
+            if (!list || !count) return;
+            if (events.length === 0) { list.innerHTML = '<div class="text-muted" style="padding:8px;">暂无临时事件</div>';
+                count.innerText = '0 项'; return; }
+            const typeNames = { income: '💰收入', necessary: '🏠必要支出', discretionary: '🎈非必要支出' };
+            list.innerHTML = events.map((e, i) => `
+                <div class="event-item">
+                    <span class="info">${e.date} - ${typeNames[e.type]}：${e.amount.toFixed(2)} 元 ${e.description?`【${e.description}】`:''}</span>
+                    <div class="actions"><button class="icon-btn" onclick="removeEvent(${i})">🗑️</button></div>
+                </div>
+            `).join('');
+            count.innerText = events.length + ' 项';
+        }
+
+        // ---------- 标签云 ----------
+        function updateTagCloud() {
+            const descMap = new Map();
+            const wd = parseFloat(document.getElementById('workdayCost').value) || 0;
+            const we = parseFloat(document.getElementById('weekendCost').value) || 0;
+            if (wd > 0 || we > 0) descMap.set('📅 每日基本生活', { count: 1 });
+            fixedRules.forEach(r => { if (r.description) descMap.set(r.description, { count: (descMap.get(r.description)
+                        ?.count || 0) + 1 }); });
+            events.forEach(e => { if (e.description) descMap.set(e.description, { count: (descMap.get(e.description)
+                        ?.count || 0) + 1 }); });
+            const container = document.getElementById('descTagCloud');
+            if (!container) return;
+            if (descMap.size === 0) { container.innerHTML = '<span class="text-muted">暂无事件说明</span>'; return; }
+            container.innerHTML = Array.from(descMap.keys()).sort().map(desc => {
+                const count = descMap.get(desc).count;
+                const active = selectedTags.has(desc) ? 'active' : '';
+                return `<span class="tag ${active}" data-desc="${desc}" onclick="toggleTag('${desc}')">${desc} <span class="count">(${count})</span></span>`;
+            }).join('');
+        }
+
+        function toggleTag(desc) {
+            if (selectedTags.has(desc)) selectedTags.delete(desc);
+            else selectedTags.add(desc);
+            updateTagCloud();
+        }
+
+        function selectAllTags() {
+            const tags = document.querySelectorAll('#descTagCloud .tag');
+            tags.forEach(tag => {
+                const desc = tag.dataset.desc;
+                if (desc) selectedTags.add(desc);
+                tag.classList.add('active');
+            });
+            if (tags.length === 0) {
+                setTimeout(selectAllTags, 100);
+            }
+        }
+
+        // ---------- 安全垫检测 ----------
+        function calculateRequiredBalanceFromDash() {
+            const safeDays = parseInt(document.getElementById('dashAlertDays').value) || 30;
+            const startStr = document.getElementById('startDate').value;
+            if (!startStr) {
+                toast('请先设置起始日期', 'error');
+                return;
+            }
+            if (!hasAnyIncomeOrExpense()) {
+                toast('请先添加收支计划', 'error');
+                return;
+            }
+            const workdayCost = parseFloat(document.getElementById('workdayCost').value) || 0;
+            const weekendCost = parseFloat(document.getElementById('weekendCost').value) || 0;
+            const startDate = new Date(startStr + 'T00:00:00');
+            const { dailyBalances } = generateDailyData(startStr, 0, workdayCost, weekendCost, startDate);
+            const nets = dailyBalances.slice(0, safeDays).map(d => d.net);
+            let cum = 0,
+                minCum = 0;
+            for (let net of nets) {
+                cum += net;
+                if (cum < minCum) minCum = cum;
+            }
+            const required = -minCum;
+            const current = parseFloat(document.getElementById('initBalance').value) || 0;
+            const gap = required - current;
+
+            const card = document.getElementById('safetyResultCard');
+            const content = document.getElementById('safetyResultContent');
+            if (!card || !content) return;
+            card.style.display = 'block';
+
+            const now = new Date();
+            const timeStr = now.toLocaleString('zh-CN', { hour12: false });
+
+            let level = 0;
+            let levelText = '';
+            let levelBadge = '';
+
+            if (required === 0) {
+                level = 0;
+                levelText = '🟢 安全（无缺口）';
+                levelBadge = '<span class="badge-level badge-level-0">安全</span>';
+            } else if (gap <= 0) {
+                level = 0;
+                levelText = '🟢 安全（余额充足）';
+                levelBadge = '<span class="badge-level badge-level-0">安全</span>';
+            } else {
+                const ratio = gap / required;
+                if (ratio < 0.3) {
+                    level = 1;
+                    levelText = '🟡 一般（缺口较小）';
+                    levelBadge = '<span class="badge-level badge-level-1">一般</span>';
+                } else if (ratio < 0.6) {
+                    level = 2;
+                    levelText = '🟠 警告（缺口中等）';
+                    levelBadge = '<span class="badge-level badge-level-2">警告</span>';
+                } else {
+                    level = 3;
+                    levelText = '🔴 危险（缺口很大）';
+                    levelBadge = '<span class="badge-level badge-level-3">危险</span>';
+                }
+            }
+
+            let resultHTML = `<div class="safety-result-box safety-level-${level}">`;
+            resultHTML += `<div>${levelBadge} <strong>${levelText}</strong></div>`;
+
+            if (required === 0) {
+                resultHTML += `<div>✅ 未来 <strong>${safeDays}</strong> 天即使余额为 0 也不会枯竭。</div>`;
+            } else if (gap <= 0) {
+                resultHTML += `<div>✅ 当前余额足够覆盖未来 <strong>${safeDays}</strong> 天的最低需求。</div>`;
+                resultHTML +=
+                    `<div style="font-size:0.9rem; opacity:0.8;">需要 ¥${required.toFixed(2)}，当前 ¥${current.toFixed(2)}，超出 ¥${(-gap).toFixed(2)}</div>`;
+            } else {
+                resultHTML +=
+                    `<div>🔐 至少需要余额 <strong>${required.toFixed(2)}</strong> 元，当前 <strong>${current.toFixed(2)}</strong> 元，缺口 <strong style="color:#c62828;">${gap.toFixed(2)}</strong> 元。</div>`;
+                resultHTML +=
+                    `<div style="font-size:0.85rem; opacity:0.8; margin-top:2px;">缺口占所需金额的 ${(gap/required*100).toFixed(1)}%</div>`;
+            }
+
+            resultHTML += `<div class="timestamp">⏱️ 检测时间：${timeStr}</div>`;
+            resultHTML += `</div>`;
+
+            content.innerHTML = resultHTML;
+        }
+
+        function setCustomAlertFromDash() {
+            const days = parseInt(document.getElementById('dashAlertDays').value) || 30;
+            EXTREME_DAYS = days;
+            DANGER_DAYS = days;
+            WARNING_DAYS = days;
+            computeAll();
+            toast('预警灵敏度已更新', 'success');
+        }
+
+        // ---------- 目标 ----------
+        function syncGoalFromDash() {
+            autoCalculateSavingGoal();
+            computeAll();
+        }
+
+        function autoCalculateSavingGoal() {
+            const target = parseFloat(document.getElementById('dashGoalInput').value);
+            const geEl = document.getElementById('dashGoalEta');
+            if (!geEl) return;
+            if (isNaN(target) || target <= 0) {
+                geEl.innerHTML = '未设置目标';
+                return;
+            }
+            const initBalance = parseFloat(document.getElementById('initBalance').value) || 0;
+            const dailyBalances = currentDailyBalances;
+            if (!dailyBalances || dailyBalances.length === 0) {
+                geEl.innerHTML = '计算中...';
+                return;
+            }
+            let found = null;
+            if (initBalance >= target) found = { date: document.getElementById('startDate').value, balance: initBalance };
+            else {
+                for (let d of dailyBalances) {
+                    if (d.balance >= target) { found = d; break; }
+                }
+            }
+            let etaText = '';
+            if (found) {
+                const startDate = new Date(document.getElementById('startDate').value + 'T00:00:00');
+                const days = Math.floor((new Date(found.date + 'T00:00:00') - startDate) / 86400000);
+                etaText = `预计 ${found.date} 达成（${days}天后）`;
+            } else {
+                let maxBal = initBalance,
+                    maxDate = document.getElementById('startDate').value;
+                for (let d of dailyBalances) {
+                    if (d.balance > maxBal) { maxBal = d.balance;
+                        maxDate = d.date; }
+                }
+                etaText = `⚠️ 无法达成，最高 ${maxBal.toFixed(2)} 元（${maxDate}）`;
+            }
+            geEl.innerHTML = etaText;
+        }
+
+        // ---------- 报告 ----------
+        function setReportRange(days) {
+            const startDateEl = document.getElementById('analysisStart');
+            const endDateEl = document.getElementById('analysisEnd');
+            const startDate = new Date(document.getElementById('startDate').value + 'T00:00:00');
+            if (isNaN(startDate)) { toast('请先设置起始日期', 'error'); return; }
+            let endDate;
+            if (days === 'all') {
+                endDate = new Date(startDate);
+                endDate.setDate(endDate.getDate() + PREDICT_DAYS - 1);
+            } else {
+                endDate = new Date(startDate);
+                endDate.setDate(endDate.getDate() + parseInt(days) - 1);
+            }
+            if (startDateEl) startDateEl.valueAsDate = startDate;
+            if (endDateEl) endDateEl.valueAsDate = endDate;
+            const label = days === 'all' ? `全部${getForecastYears()}年` : `未来${days}天`;
+            toast('已设为 ' + label, 'success');
+        }
+
+        function runAnalysis() {
+            if (!hasAnyIncomeOrExpense()) {
+                toast('请先添加收支计划', 'error');
+                return;
+            }
+            const startStr = document.getElementById('analysisStart').value;
+            const endStr = document.getElementById('analysisEnd').value;
+            if (!startStr || !endStr) { toast('请选择完整时间段', 'error'); return; }
+            const selectedDescs = Array.from(selectedTags);
+            if (selectedDescs.length === 0) { toast('请至少选择一个标签', 'error'); return; }
+            const mainStart = document.getElementById('startDate').value;
+            const mainStartDate = new Date(mainStart + 'T00:00:00');
+            const workdayCost = parseFloat(document.getElementById('workdayCost').value) || 0;
+            const weekendCost = parseFloat(document.getElementById('weekendCost').value) || 0;
+            const initBalance = parseFloat(document.getElementById('initBalance').value) || 0;
+            const { dailyBalances } = generateDailyData(mainStart, initBalance, workdayCost, weekendCost, mainStartDate);
+            const filtered = dailyBalances.filter(d => d.date >= startStr && d.date <= endStr);
+            const resultEl = document.getElementById('analysisResult');
+            const contentEl = document.getElementById('analysisContent');
+            const detailEl = document.getElementById('analysisDetail');
+            const bannerEl = document.getElementById('analysisBanner');
+            const exportBtn = document.getElementById('exportAnalysisBtn');
+            if (!resultEl || !contentEl) return;
+            if (filtered.length === 0) {
+                resultEl.style.display = 'block';
+                contentEl.innerHTML = '该时间段无数据。';
+                if (detailEl) detailEl.innerHTML = '';
+                if (bannerEl) bannerEl.innerText = '';
+                if (exportBtn) exportBtn.style.display = 'none';
+                return;
+            }
+            const datesInRange = filtered.map(d => d.date);
+            const selectedDailyMap = {};
+            datesInRange.forEach(d => selectedDailyMap[d] = { income: 0, necessary: 0, discretionary: 0 });
+            const detailList = [];
+            const includeDaily = selectedDescs.includes('📅 每日基本生活');
+            datesInRange.forEach(dateStr => {
+                const d = new Date(dateStr + 'T00:00:00');
+                const cost = isWeekend(d) ? weekendCost : workdayCost;
+                if (includeDaily && cost > 0) {
+                    selectedDailyMap[dateStr].necessary += cost;
+                    detailList.push({ date: dateStr, type: 'necessary', amount: cost, description: '每日基本生活' });
+                }
+                fixedRules.forEach(rule => {
+                    if (!selectedDescs.includes(rule.description)) return;
+                    if (isRuleEffectiveOnDate(rule, dateStr, mainStartDate)) {
+                        if (rule.type === 'income') selectedDailyMap[dateStr].income += rule.amount;
+                        else if (rule.type === 'necessary') selectedDailyMap[dateStr].necessary += rule.amount;
+                        else selectedDailyMap[dateStr].discretionary += rule.amount;
+                        detailList.push({ date: dateStr, type: rule.type, amount: rule.amount,
+                            description: rule.description });
+                    }
+                });
+                events.forEach(e => {
+                    if (e.date === dateStr && selectedDescs.includes(e.description)) {
+                        if (e.type === 'income') selectedDailyMap[dateStr].income += e.amount;
+                        else if (e.type === 'necessary') selectedDailyMap[dateStr].necessary += e.amount;
+                        else selectedDailyMap[dateStr].discretionary += e.amount;
+                        detailList.push({ date: dateStr, type: e.type, amount: e.amount,
+                            description: e.description });
+                    }
+                });
+            });
+            let totalIncome = 0,
+                totalNecessary = 0,
+                totalDiscretionary = 0;
+            datesInRange.forEach(d => { const item = selectedDailyMap[d];
+                totalIncome += item.income;
+                totalNecessary += item.necessary;
+                totalDiscretionary += item.discretionary; });
+            const totalExpense = totalNecessary + totalDiscretionary;
+            let allIncome = 0,
+                allExpense = 0;
+            filtered.forEach(d => { allIncome += d.income;
+                allExpense += d.totalExpense; });
+            const typeNames = { income: '💰收入', necessary: '🏠必要支出', discretionary: '🎈非必要支出' };
+            detailList.sort((a, b) => a.date.localeCompare(b.date));
+            const detailHtml = detailList.length ?
+                `<details><summary>📋 发生明细（${detailList.length}条）</summary><table><tr><th>日期</th><th>类型</th><th>说明</th><th>金额</th></tr>${detailList.map(item=>`<tr><td>${item.date}</td><td>${typeNames[item.type]}</td><td>${item.description}</td><td>${item.amount.toFixed(2)}</td></tr>`).join('')}</table></details>` :
+                '';
+            const days = Math.ceil((new Date(endStr) - new Date(startStr)) / 86400000) + 1;
+            const banner = `📅 预测周期：${startStr} 至 ${endStr}（共 ${days} 天）🔮 全部为未来日期`;
+            if (bannerEl) bannerEl.innerText = banner;
+
+            const summaryHTML = `<p><strong>选中说明：</strong>${selectedDescs.join('、')}</p>
+                <table><tr><th>指标</th><th>金额</th><th>占比</th></tr>
+                <tr><td>💰 收入合计</td><td>${totalIncome.toFixed(2)}</td><td>${allIncome>0?(totalIncome/allIncome*100).toFixed(1)+'%':'-'}</td></tr>
+                <tr><td>🏠 必要支出合计</td><td>${totalNecessary.toFixed(2)}</td><td>${allExpense>0?(totalNecessary/allExpense*100).toFixed(1)+'%':'-'}</td></tr>
+                <tr><td>🎈 非必要支出合计</td><td>${totalDiscretionary.toFixed(2)}</td><td>${allExpense>0?(totalDiscretionary/allExpense*100).toFixed(1)+'%':'-'}</td></tr>
+                <tr><td>💸 总支出</td><td>${totalExpense.toFixed(2)}</td><td>${allExpense>0?(totalExpense/allExpense*100).toFixed(1)+'%':'-'}</td></tr>
+                <tr><td>📊 净现金流</td><td>${(totalIncome-totalExpense).toFixed(2)}</td><td></td></tr></table>`;
+            resultEl.style.display = 'block';
+            contentEl.innerHTML = summaryHTML;
+            if (detailEl) detailEl.innerHTML = detailHtml;
+            if (exportBtn) exportBtn.style.display = 'inline-block';
+            currentAnalysisData = { startStr, endStr, selectedDescs, totalIncome, totalNecessary, totalDiscretionary,
+                totalExpense, allIncome, allExpense, detailList };
+            const pieCtx = document.getElementById('analysisPieChart');
+            if (pieCtx) {
+                if (pieChartInstance) { pieChartInstance.destroy();
+                    pieChartInstance = null; }
+                pieChartInstance = new Chart(pieCtx.getContext('2d'), {
+                    type: 'pie',
+                    data: { labels: ['收入', '必要支出', '非必要支出'], datasets: [{ data: [totalIncome,
+                                totalNecessary, totalDiscretionary
+                            ], backgroundColor: ['#16a34a', '#2563eb', '#f59e0b'] }] },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+            toast('报告生成完成', 'success');
+        }
+
+        function exportAnalysisCSV() {
+            if (!currentAnalysisData) { toast('请先生成报告', 'error'); return; }
+            const { startStr, endStr, selectedDescs, totalIncome, totalNecessary, totalDiscretionary, totalExpense,
+                allIncome, allExpense, detailList } = currentAnalysisData;
+            const typeNames = { income: '收入', necessary: '必要支出', discretionary: '非必要支出' };
+            let csv = '预测周期,' + startStr + ' 至 ' + endStr + '\n';
+            csv += '选中说明,' + selectedDescs.join('、') + '\n\n';
+            csv += '指标,金额,占比\n';
+            csv += `收入合计,${totalIncome.toFixed(2)},${allIncome>0?(totalIncome/allIncome*100).toFixed(1)+'%':''}\n`;
+            csv +=
+                `必要支出合计,${totalNecessary.toFixed(2)},${allExpense>0?(totalNecessary/allExpense*100).toFixed(1)+'%':''}\n`;
+            csv +=
+                `非必要支出合计,${totalDiscretionary.toFixed(2)},${allExpense>0?(totalDiscretionary/allExpense*100).toFixed(1)+'%':''}\n`;
+            csv += `总支出,${totalExpense.toFixed(2)},${allExpense>0?(totalExpense/allExpense*100).toFixed(1)+'%':''}\n`;
+            csv += `净现金流,${(totalIncome-totalExpense).toFixed(2)}\n\n`;
+            csv += '发生明细\n日期,类型,说明,金额\n';
+            detailList.forEach(item => csv +=
+                `${item.date},${typeNames[item.type]},${item.description},${item.amount.toFixed(2)}\n`);
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `现金流预测_${startStr}_${endStr}.csv`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        // ---------- 导入导出 ----------
+        function exportData() {
+            const data = {
+                initBalance: document.getElementById('initBalance').value,
+                goalAmount: document.getElementById('dashGoalInput').value,
+                startDate: document.getElementById('startDate').value,
+                forecastYears: document.getElementById('forecastYears').value,
+                workdayCost: document.getElementById('workdayCost').value,
+                weekendCost: document.getElementById('weekendCost').value,
+                fixedRules: fixedRules.map(r => ({ ...r })),
+                events: events.map(e => ({ ...e }))
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const filename = '现金流预测配置_' + new Date().toISOString().slice(0, 10) + '.json';
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            toast(`✅ 备份文件 "${filename}" 已开始下载，请查看浏览器下载目录`, 'success');
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    const initEl = document.getElementById('initBalance');
+                    const goalEl = document.getElementById('dashGoalInput');
+                    const startEl = document.getElementById('startDate');
+                    const wdEl = document.getElementById('workdayCost');
+                    const weEl = document.getElementById('weekendCost');
+                    const fyEl = document.getElementById('forecastYears');
+                    if (initEl) initEl.value = data.initBalance || 0;
+                    if (goalEl) goalEl.value = data.goalAmount || 0;
+                    if (startEl) startEl.value = data.startDate || formatDate(new Date());
+                    if (wdEl) wdEl.value = data.workdayCost || 0;
+                    if (weEl) weEl.value = data.weekendCost || 0;
+                    if (data.forecastYears && fyEl) {
+                        fyEl.value = data.forecastYears;
+                        PREDICT_DAYS = data.forecastYears * 365;
+                        updateTotalDaysHint();
+                    }
+                    fixedRules = (data.fixedRules || []).map(r => {
+                        if (r.earlyEndDate === undefined) r.earlyEndDate = '';
+                        return r;
+                    });
+                    events = data.events || [];
+                    renderFixedRules();
+                    renderEventList();
+                    computeAll();
+                    updateTagCloud();
+                    selectAllTags();
+                    closeGuide();
+                    toast('✅ 配置恢复成功', 'success');
+                } catch (err) {
+                    toast('❌ 导入失败，文件格式错误', 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // ---------- 引导 ----------
+        function showGuide() {
+            const overlay = document.getElementById('guideOverlay');
+            if (!overlay) return;
+            overlay.style.display = 'flex';
+            overlay.classList.add('active');
+        }
+
+        function closeGuide() {
+            const overlay = document.getElementById('guideOverlay');
+            if (!overlay) return;
+            overlay.style.display = 'none';
+            overlay.classList.remove('active');
+        }
+
+        function importFromGuide() {
+            closeGuide();
+            document.getElementById('importFile').click();
+        }
+
+        // ---------- 初始化 ----------
+        window.onload = function() {
+            const today = new Date();
+            const startEl = document.getElementById('startDate');
+            const eventDateEl = document.getElementById('addEventDate');
+            const analysisStartEl = document.getElementById('analysisStart');
+            const analysisEndEl = document.getElementById('analysisEnd');
+            if (startEl) startEl.valueAsDate = today;
+            if (eventDateEl) eventDateEl.valueAsDate = today;
+            if (analysisStartEl) analysisStartEl.valueAsDate = today;
+            let endDate = new Date(today);
+            endDate.setDate(endDate.getDate() + PREDICT_DAYS);
+            if (analysisEndEl) analysisEndEl.valueAsDate = endDate;
+            const goalEl = document.getElementById('dashGoalInput');
+            if (goalEl) goalEl.value = 0;
+            const alertEl = document.getElementById('dashAlertDays');
+            if (alertEl) alertEl.value = 30;
+            updateTotalDaysHint();
+            computeAll();
+            renderFixedRules();
+            renderEventList();
+            updateTagCloud();
+            setTimeout(selectAllTags, 200);
+            // 显示引导弹窗（如果没有任何数据）
+            const initVal = parseFloat(document.getElementById('initBalance').value) || 0;
+            if (initVal === 0 && fixedRules.length === 0 && events.length === 0) {
+                setTimeout(showGuide, 500);
+            }
+        };
+    </script>
+</body>
+</html>
